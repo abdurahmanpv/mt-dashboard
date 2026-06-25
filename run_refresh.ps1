@@ -64,6 +64,39 @@ if ($exitCode -eq 0) {
     "[$stamp] FAILED with exit code $exitCode" | Tee-Object -FilePath $LogFile -Append
 }
 
+# ── Push updated HTML to GitHub (only on success, only if file changed) ───────
+if ($exitCode -eq 0 -and -not $DryRun) {
+    $stamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "[$stamp] Checking for HTML changes to push to GitHub..." | Tee-Object -FilePath $LogFile -Append
+
+    $htmlFile = Join-Path $ScriptDir "CEO_Subscription_Dashboard.html"
+    if (Test-Path $htmlFile) {
+        git -C $ScriptDir add CEO_Subscription_Dashboard.html 2>&1 | Tee-Object -FilePath $LogFile -Append
+
+        # Only commit if the file actually changed
+        $diffOutput = git -C $ScriptDir diff --cached --quiet 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $dateStr = Get-Date -Format "yyyy-MM-dd"
+            git -C $ScriptDir commit -m "chore: refresh dashboard $dateStr" 2>&1 | Tee-Object -FilePath $LogFile -Append
+            git -C $ScriptDir push origin main 2>&1 | Tee-Object -FilePath $LogFile -Append
+
+            if ($LASTEXITCODE -eq 0) {
+                $stamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+                "[$stamp] HTML pushed to GitHub — Pages will update shortly." | Tee-Object -FilePath $LogFile -Append
+            } else {
+                $stamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+                "[$stamp] WARNING: git push failed (exit $LASTEXITCODE). HTML not published." | Tee-Object -FilePath $LogFile -Append
+            }
+        } else {
+            $stamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+            "[$stamp] HTML unchanged — skipping commit." | Tee-Object -FilePath $LogFile -Append
+        }
+    } else {
+        $stamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        "[$stamp] WARNING: CEO_Subscription_Dashboard.html not found — skipping push." | Tee-Object -FilePath $LogFile -Append
+    }
+}
+
 # ── Prune logs older than 30 days ─────────────────────────────────────────────
 Get-ChildItem -Path $LogDir -Filter "refresh_*.log" |
     Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) } |

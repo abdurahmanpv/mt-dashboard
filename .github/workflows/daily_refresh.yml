@@ -2,101 +2,42 @@
 # .github/workflows/daily_refresh.yml
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# Required GitHub Secrets (repo Settings → Secrets and variables → Actions):
+# NOTE: The pipeline does NOT run in GitHub Actions.
 #
-#   ── Database ────────────────────────────────────────────────────────────────
-#   DB_HOST       Internal MySQL host reachable FROM the jumpserver
-#   DB_PORT       MySQL port (e.g. 3100)
-#   DB_USER       MySQL username
-#   DB_PASSWORD   MySQL password
-#   DB_NAME       Database name (WAY_SUBSCRIPTIONS)
+# The MySQL database is only reachable from the office network / VPN, so the
+# pipeline runs locally via Windows Task Scheduler (run_refresh.ps1).
+# After each successful run, run_refresh.ps1 commits and pushes
+# CEO_Subscription_Dashboard.html to this repo, and GitHub Pages serves it.
 #
-#   ── SSH tunnel through jumpserver ───────────────────────────────────────────
-#   JUMP_HOST     Jumpserver public IP or hostname
-#   JUMP_USER     SSH username on the jumpserver (e.g. ubuntu, ec2-user)
-#   JUMP_SSH_KEY  Private SSH key whose public half is in jumpserver authorized_keys
+# This workflow exists only to validate that the HTML was pushed and is
+# accessible via GitHub Pages.  It runs after every push to main that touches
+# the HTML file.
 # ─────────────────────────────────────────────────────────────────────────────
 
-name: CEO Dashboard Daily Refresh
+name: Verify Dashboard Published
 
 on:
-  schedule:
-    # 11:00 UTC = 3:00 AM PST (UTC-8) / 4:00 AM PDT (UTC-7)
-    - cron: '0 11 * * *'
-  workflow_dispatch:    # allow manual trigger from the GitHub Actions UI
+  push:
+    branches: [main]
+    paths:
+      - "CEO_Subscription_Dashboard.html"
+  workflow_dispatch:
 
 jobs:
-  refresh:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    permissions:
-      contents: write   # needed to push the refreshed HTML back to main
+    timeout-minutes: 5
 
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # full history so the push back succeeds cleanly
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      # ── Open SSH tunnel: localhost:DB_PORT → DB_HOST:DB_PORT via jumpserver ──
-      - name: Open SSH tunnel to MySQL
+      - name: Confirm HTML is present and non-empty
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.JUMP_SSH_KEY }}" > ~/.ssh/jump_key
-          chmod 600 ~/.ssh/jump_key
-          ssh-keyscan -H "${{ secrets.JUMP_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
-          ssh -f -N \
-            -i ~/.ssh/jump_key \
-            -L ${{ secrets.DB_PORT }}:${{ secrets.DB_HOST }}:${{ secrets.DB_PORT }} \
-            ${{ secrets.JUMP_USER }}@${{ secrets.JUMP_HOST }} \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=3
-          sleep 2
-          echo "SSH tunnel established on localhost:${{ secrets.DB_PORT }}"
-
-      - name: Run daily refresh
-        env:
-          # Tunnel is listening on localhost — point DB_HOST there
-          DB_HOST:      "127.0.0.1"
-          DB_PORT:      ${{ secrets.DB_PORT }}
-          DB_USER:      ${{ secrets.DB_USER }}
-          DB_PASSWORD:  ${{ secrets.DB_PASSWORD }}
-          DB_NAME:      ${{ secrets.DB_NAME }}
-          SOURCE_FILE:  CEO_Subscription_Dashboard_ref.xlsx
-          OUTPUT_FILE:  CEO_Subscription_Dashboard.xlsx
-          SQL_FILE:     mileage_tracker_subscriptions.sql
-        run: python daily_refresh.py
-
-      # ── Commit the refreshed HTML back to main ────────────────────────────
-      - name: Commit updated HTML dashboard
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add CEO_Subscription_Dashboard.html
-          git diff --cached --quiet || git commit -m "chore: refresh dashboard $(date -u +%Y-%m-%d)"
-
-      - name: Push HTML
-        uses: ad-m/github-push-action@v0.8.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
-
-      # ── Upload run log as artifact (kept 30 days for debugging) ───────────
-      - name: Upload run log as artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: refresh-log-${{ github.run_id }}
-          path: "*.log"
-          if-no-files-found: ignore
-          retention-days: 30
+          if [ ! -s CEO_Subscription_Dashboard.html ]; then
+            echo "ERROR: CEO_Subscription_Dashboard.html is missing or empty"
+            exit 1
+          fi
+          SIZE=$(wc -c < CEO_Subscription_Dashboard.html)
+          echo "CEO_Subscription_Dashboard.html present — ${SIZE} bytes"
+          echo "Pages URL: https://abdurahmanpv.github.io/mt-dashboard/CEO_Subscription_Dashboard.html"

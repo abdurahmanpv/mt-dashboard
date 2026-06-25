@@ -3,11 +3,18 @@
 # ─────────────────────────────────────────────────────────────────────────────
 #
 # Required GitHub Secrets (repo Settings → Secrets and variables → Actions):
-#   DB_HOST       MySQL host (public IP or VPN-accessible hostname)
+#
+#   ── Database ────────────────────────────────────────────────────────────────
+#   DB_HOST       Internal MySQL host reachable FROM the jumpserver
 #   DB_PORT       MySQL port (e.g. 3100)
 #   DB_USER       MySQL username
 #   DB_PASSWORD   MySQL password
 #   DB_NAME       Database name (WAY_SUBSCRIPTIONS)
+#
+#   ── SSH tunnel through jumpserver ───────────────────────────────────────────
+#   JUMP_HOST     Jumpserver public IP or hostname
+#   JUMP_USER     SSH username on the jumpserver (e.g. ubuntu, ec2-user)
+#   JUMP_SSH_KEY  Private SSH key whose public half is in jumpserver authorized_keys
 # ─────────────────────────────────────────────────────────────────────────────
 
 name: CEO Dashboard Daily Refresh
@@ -41,9 +48,26 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # ── Open SSH tunnel: localhost:DB_PORT → DB_HOST:DB_PORT via jumpserver ──
+      - name: Open SSH tunnel to MySQL
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.JUMP_SSH_KEY }}" > ~/.ssh/jump_key
+          chmod 600 ~/.ssh/jump_key
+          ssh-keyscan -H "${{ secrets.JUMP_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -f -N \
+            -i ~/.ssh/jump_key \
+            -L ${{ secrets.DB_PORT }}:${{ secrets.DB_HOST }}:${{ secrets.DB_PORT }} \
+            ${{ secrets.JUMP_USER }}@${{ secrets.JUMP_HOST }} \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=3
+          sleep 2
+          echo "SSH tunnel established on localhost:${{ secrets.DB_PORT }}"
+
       - name: Run daily refresh
         env:
-          DB_HOST:      ${{ secrets.DB_HOST }}
+          # Tunnel is listening on localhost — point DB_HOST there
+          DB_HOST:      "127.0.0.1"
           DB_PORT:      ${{ secrets.DB_PORT }}
           DB_USER:      ${{ secrets.DB_USER }}
           DB_PASSWORD:  ${{ secrets.DB_PASSWORD }}

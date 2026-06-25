@@ -1,0 +1,69 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PLACE THIS FILE AT: .github/workflows/daily_refresh.yml in your repo root
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Required GitHub Secrets (repo Settings → Secrets and variables → Actions):
+#   DB_HOST           MySQL host (public IP or VPN-accessible hostname)
+#   DB_PORT           MySQL port (e.g. 3100)
+#   DB_USER           MySQL username
+#   DB_PASSWORD       MySQL password
+#   DB_NAME           Database name (WAY_SUBSCRIPTIONS)
+#   SP_SITE_URL       SharePoint site URL  e.g. https://waycominc.sharepoint.com/sites/DataTeam
+#   SP_FOLDER_PATH    Server-relative folder path  e.g. /sites/DataTeam/Shared Documents/Mileage Tracker/CEO Dashboard/files
+#   SP_USERNAME       Service account email  e.g. automation@waycominc.com
+#   SP_PASSWORD       Service account password
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CEO Dashboard Daily Refresh
+
+on:
+  schedule:
+    # 11:00 UTC = 3:00 AM PST (UTC-8) / 4:00 AM PDT (UTC-7)
+    - cron: '0 11 * * *'
+  workflow_dispatch:    # allow manual trigger from the GitHub Actions UI
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run daily refresh
+        env:
+          # ── Database ──────────────────────────────────────────────────────
+          DB_HOST:        ${{ secrets.DB_HOST }}
+          DB_PORT:        ${{ secrets.DB_PORT }}
+          DB_USER:        ${{ secrets.DB_USER }}
+          DB_PASSWORD:    ${{ secrets.DB_PASSWORD }}
+          DB_NAME:        ${{ secrets.DB_NAME }}
+          # ── File paths ────────────────────────────────────────────────────
+          SOURCE_FILE:    CEO_Subscription_Dashboard_ref.xlsx
+          OUTPUT_FILE:    CEO_Subscription_Dashboard.xlsx
+          SQL_FILE:       mileage_tracker_subscriptions.sql
+          # ── SharePoint service account ────────────────────────────────────
+          SP_SITE_URL:    ${{ secrets.SP_SITE_URL }}
+          SP_FOLDER_PATH: ${{ secrets.SP_FOLDER_PATH }}
+          SP_USERNAME:    ${{ secrets.SP_USERNAME }}
+          SP_PASSWORD:    ${{ secrets.SP_PASSWORD }}
+        run: python daily_refresh.py
+
+      - name: Upload run log as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: refresh-log-${{ github.run_id }}
+          path: "*.log"
+          if-no-files-found: ignore
+          retention-days: 30

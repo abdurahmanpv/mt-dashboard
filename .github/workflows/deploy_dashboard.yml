@@ -1,0 +1,46 @@
+name: Deploy CEO Dashboard to Cloudflare Pages
+
+# Runs automatically after the existing daily_refresh.yml finishes,
+# OR whenever the HTML file is manually committed (push to main).
+# You can also trigger it manually from the GitHub Actions tab.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "CEO_Subscription_Dashboard.html"   # only redeploy when HTML changes
+
+  workflow_dispatch:   # "Run workflow" button in GitHub Actions tab
+
+  # If you want to trigger this from daily_refresh.yml, add at the end of
+  # that workflow:
+  #   workflow_call: {}
+  # and add this job as a dependent job there.
+
+jobs:
+  deploy:
+    name: Publish to Cloudflare Pages
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout repo ────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Deploy HTML to Cloudflare Pages ──────────────────────────────────
+      # Uses the official Cloudflare Pages action.
+      # Secrets required (add in GitHub → Settings → Secrets → Actions):
+      #   CLOUDFLARE_API_TOKEN  — created in Cloudflare dashboard → My Profile → API Tokens
+      #                           Permission: "Cloudflare Pages — Edit"
+      #   CLOUDFLARE_ACCOUNT_ID — found in Cloudflare dashboard → right sidebar
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken:   ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId:  ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ceo-subscription-dashboard   # must match your Pages project name
+          directory:   .                             # deploy from repo root
+          # Only the HTML file is deployed — everything else is ignored by
+          # Cloudflare Pages (it only serves files in the deployed directory).
+          # If you later add assets (logo, css), keep them alongside the HTML.
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}   # enables automatic PR comments

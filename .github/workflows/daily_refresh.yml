@@ -1,0 +1,78 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .github/workflows/daily_refresh.yml
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Required GitHub Secrets (repo Settings → Secrets and variables → Actions):
+#   DB_HOST       MySQL host (public IP or VPN-accessible hostname)
+#   DB_PORT       MySQL port (e.g. 3100)
+#   DB_USER       MySQL username
+#   DB_PASSWORD   MySQL password
+#   DB_NAME       Database name (WAY_SUBSCRIPTIONS)
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: CEO Dashboard Daily Refresh
+
+on:
+  schedule:
+    # 11:00 UTC = 3:00 AM PST (UTC-8) / 4:00 AM PDT (UTC-7)
+    - cron: '0 11 * * *'
+  workflow_dispatch:    # allow manual trigger from the GitHub Actions UI
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: write   # needed to push the refreshed HTML back to main
+
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so the push back succeeds cleanly
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run daily refresh
+        env:
+          DB_HOST:      ${{ secrets.DB_HOST }}
+          DB_PORT:      ${{ secrets.DB_PORT }}
+          DB_USER:      ${{ secrets.DB_USER }}
+          DB_PASSWORD:  ${{ secrets.DB_PASSWORD }}
+          DB_NAME:      ${{ secrets.DB_NAME }}
+          SOURCE_FILE:  CEO_Subscription_Dashboard_ref.xlsx
+          OUTPUT_FILE:  CEO_Subscription_Dashboard.xlsx
+          SQL_FILE:     mileage_tracker_subscriptions.sql
+        run: python daily_refresh.py
+
+      # ── Commit the refreshed HTML back to main ────────────────────────────
+      - name: Commit updated HTML dashboard
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CEO_Subscription_Dashboard.html
+          git diff --cached --quiet || git commit -m "chore: refresh dashboard $(date -u +%Y-%m-%d)"
+
+      - name: Push HTML
+        uses: ad-m/github-push-action@v0.8.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+
+      # ── Upload run log as artifact (kept 30 days for debugging) ───────────
+      - name: Upload run log as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: refresh-log-${{ github.run_id }}
+          path: "*.log"
+          if-no-files-found: ignore
+          retention-days: 30

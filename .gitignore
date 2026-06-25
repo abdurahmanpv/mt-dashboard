@@ -1,0 +1,24 @@
+# Credentials & environment
+.env
+.venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Logs
+logs/
+*.log
+build_out.txt
+refresh_output.txt
+
+# Generated output files (rebuilt by pipeline — do not commit)
+CEO_Subscription_Dashboard.xlsx
+CEO_Dashboard_Validation_Guide.xlsx
+Retention and Conversion.xlsx
+
+# NOTE: CEO_Subscription_Dashboard.html is intentionally NOT excluded —
+# it is committed by the CI workflow so GitHub Pages can serve it.
+
+# NOTE: _dashboard_template.html and *.sql files are intentionally NOT excluded —
+# they are required at runtime.

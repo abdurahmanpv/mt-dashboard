@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CEO Subscription Dashboard</title>
+<style>
+:root{--navy:#1B2A4A;--purple:#6C3483;--teal:#117A65;--amber:#B7770D;--red:#922B21;--bg:#F4F6F9;--card:#fff;--border:#DDE1E7;--text:#1A1A2E;--muted:#6B7280;--green:#1E8449}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+.topbar{background:var(--navy);color:#fff;display:flex;align-items:center;padding:0 24px;height:52px;position:sticky;top:0;z-index:200}
+.topbar .brand{font-weight:800;font-size:15px;margin-right:28px;white-space:nowrap}
+.topbar .meta{font-size:12px;opacity:.6;margin-left:auto}
+.tabbar{background:#fff;border-bottom:2px solid var(--border);display:flex;padding:0 24px;position:sticky;top:52px;z-index:199}
+.tabbtn{padding:14px 20px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border:none;background:transparent;border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .15s}
+.tabbtn:hover{color:var(--navy)}
+.tabbtn.active{color:var(--purple);border-bottom-color:var(--purple)}
+.tabpanel{display:none;max-width:1280px;margin:0 auto;padding:24px 20px}
+.tabpanel.active{display:block}
+h2{font-size:16px;font-weight:700;color:var(--navy);border-left:4px solid var(--purple);padding-left:10px;margin:24px 0 14px}
+h3{font-size:12px;font-weight:600;color:var(--muted);margin:16px 0 10px;text-transform:uppercase;letter-spacing:.5px}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:4px}
+@media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+.kpi-card{background:var(--card);border-radius:10px;padding:16px 18px;border:1px solid var(--border);border-top:3px solid var(--purple)}
+.kpi-card.teal{border-top-color:var(--teal)}.kpi-card.amber{border-top-color:var(--amber)}.kpi-card.red{border-top-color:var(--red)}.kpi-card.green{border-top-color:var(--green)}.kpi-card.navy{border-top-color:var(--navy)}
+.kpi-card .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:4px}
+.kpi-card .val{font-size:26px;font-weight:800;color:var(--navy);line-height:1.1}
+.kpi-card .chg{font-size:11px;margin-top:4px;color:var(--muted)}
+.kpi-card .sub{font-size:11px;color:var(--muted);margin-top:3px}
+.kpi-card.clickable{cursor:pointer}
+.kpi-card.clickable:hover{box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.tbl-wrap{overflow-x:auto;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
+th{background:var(--navy);color:#fff;padding:7px 11px;text-align:left;font-weight:600;font-size:12px}
+td{padding:6px 11px;border-bottom:1px solid var(--border)}
+tr:hover td{background:#F4F0FF}
+.rate{font-weight:600;color:var(--purple)}
+.up{color:var(--green)}.dn{color:var(--red)}
+.drill{display:none;background:#F8F9FF;border:1px solid var(--purple);border-radius:8px;padding:14px;margin-top:8px}
+.drill.open{display:block}
+.drill h4{font-size:13px;font-weight:600;color:var(--navy);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.badge{background:var(--purple);color:#fff;border-radius:10px;padding:2px 9px;font-size:11px}
+.btn{border:none;border-radius:6px;padding:6px 13px;font-size:12px;cursor:pointer;margin-bottom:8px}
+.btn-csv{background:var(--teal);color:#fff}.btn-csv:hover{opacity:.85}
+.btn-dl{background:var(--navy);color:#fff;padding:10px 20px;font-size:14px}.btn-dl:hover{opacity:.85}
+.srch{width:100%;padding:6px 9px;border:1px solid var(--border);border-radius:5px;font-size:12px;margin-bottom:6px}
+.drill-tbl{max-height:300px;overflow-y:auto}
+.section{margin-bottom:28px}
+footer{text-align:center;font-size:12px;color:var(--muted);padding:20px}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">&#128202; CEO Subscription Dashboard</div>
+  <div class="meta">As of @@AS_OF@@ &nbsp;&middot;&nbsp; @@TZ@@ &nbsp;&middot;&nbsp; Generated @@GENERATED_ON@@</div>
+</div>
+<div class="tabbar">
+  <button class="tabbtn active" onclick="showTab('exec')">Executive Dashboard</button>
+  <button class="tabbtn" onclick="showTab('plans')">Plan Performance</button>
+  <button class="tabbtn" onclick="showTab('ret')">Retention &amp; Renewals</button>
+  <button class="tabbtn" onclick="showTab('raw')">Raw Data</button>
+</div>
+
+<!-- TAB 1: EXECUTIVE DASHBOARD -->
+<div class="tabpanel active" id="tab-exec">
+  <h2>Volume Overview</h2>
+  <div class="kpi-grid" id="kpi-row1"></div>
+  <h2>Funnel Flow</h2>
+  <div class="kpi-grid" id="kpi-row2"></div>
+  <h2>Revenue &amp; Health</h2>
+  <div class="kpi-grid" id="kpi-row3"></div>
+
+  <div class="section">
+    <h2>Performance Metrics &mdash; All Time Windows</h2>
+    <div class="tbl-wrap"><table>
+      <tr>@@PERF_HDR@@</tr>
+      @@PERF_ROWS@@
+    </table></div>
+  </div>
+
+  <div class="section">
+    <h2>MoM Variance Summary</h2>
+    <div class="tbl-wrap"><table>
+      <tr><th>Metric</th><th>MTD (@@LBL_MTD@@)</th><th>vs Prev Month Full</th><th>vs Same Days Last Mo.</th></tr>
+      @@MOM_VAR_HTML@@
+    </table></div>
+  </div>
+
+  <div class="section">
+    <h2>12-Month Trend</h2>
+    <div style="background:var(--card);border-radius:10px;padding:18px;border:1px solid var(--border);margin-bottom:12px">
+      <canvas id="trendChart" style="max-height:260px"></canvas>
+    </div>
+    <div class="tbl-wrap"><table>
+      <tr><th>Month</th><th>New Subs</th><th>Trials</th><th>Renewals</th><th>Paid</th><th>Cash Rev ($)</th><th>MRR ($)</th><th>Trial Conv%</th></tr>
+      @@TREND_HTML@@
+    </table></div>
+  </div>
+
+  <h2>Active Subscriber Drill-Downs</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+    <div class="kpi-card clickable" onclick="toggleDrill('drill-now')" style="flex:1;min-width:200px">
+      <div class="lbl">Active Now</div>
+      <div class="val" id="card-active-now">&#8230;</div>
+      <div class="sub" style="color:var(--purple)">&#9660; view list</div>
+    </div>
+    <div class="kpi-card clickable teal" onclick="toggleDrill('drill-start')" style="flex:1;min-width:200px">
+      <div class="lbl">At Month Start (@@MTD_START@@)</div>
+      <div class="val" id="card-active-start">&#8230;</div>
+      <div class="sub" id="card-start-sub">&#8230;</div>
+      <div class="sub" style="color:var(--purple)">&#9660; view list</div>
+    </div>
+  </div>
+  <div class="drill" id="drill-now">
+    <h4>Active Now <span class="badge" id="cnt-now"></span></h4>
+    <button class="btn btn-csv" onclick="downloadCSV('active_now')">&#8595; CSV</button>
+    <input class="srch" placeholder="Filter..." oninput="filterDrill(this,'tbl-now')">
+    <div class="drill-tbl"><table id="tbl-now"></table></div>
+  </div>
+  <div class="drill" id="drill-start">
+    <h4>Active at Month Start <span class="badge" id="cnt-start"></span></h4>
+    <button class="btn btn-csv" onclick="downloadCSV('active_at_month_start')">&#8595; CSV</button>
+    <input class="srch" placeholder="Filter..." oninput="filterDrill(this,'tbl-start')">
+    <div class="drill-tbl"><table id="tbl-start"></table></div>
+  </div>
+
+  <div style="margin-top:12px">
+    <div class="kpi-card clickable amber" onclick="toggleDrill('drill-trials')" style="max-width:280px">
+      <div class="lbl">Open Trial Pipeline</div>
+      <div class="val" id="card-trials">&#8230;</div>
+      <div class="sub" style="color:var(--purple)">&#9660; view list</div>
+    </div>
+    <div class="drill" id="drill-trials">
+      <h4>Open Trials <span class="badge" id="cnt-trials"></span></h4>
+      <button class="btn btn-csv" onclick="downloadCSV('trial_pipeline')">&#8595; CSV</button>
+      <input class="srch" placeholder="Filter..." oninput="filterDrill(this,'tbl-trials')">
+      <div class="drill-tbl"><table id="tbl-trials"></table></div>
+    </div>
+  </div>
+
+  <div class="section" style="margin-top:20px">
+    <h2>Active by Plan &mdash; Month by Month</h2>
+    <div class="tbl-wrap"><table>@@ABP_HTML@@</table></div>
+    <h3 style="margin-top:16px">Drill into @@ABP_DATE@@</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap" id="plan-cards"></div>
+    <div id="plan-panels"></div>
+  </div>
+</div>
+
+<!-- TAB 2: PLAN PERFORMANCE -->
+<div class="tabpanel" id="tab-plans">
+  <div class="section">
+    <h2>Plan Segment Breakdown</h2>
+    <div class="tbl-wrap"><table>
+      <tr><th>Plan Segment</th><th>Yesterday</th><th>MTD</th><th>Prev Month</th><th>Same Period</th><th>YTD</th><th>Lifetime</th><th>Cash Rev MTD</th><th>MRR MTD</th><th>Unique Users MTD</th></tr>
+      @@PP_HTML@@
+    </table></div>
+  </div>
+  <div class="section">
+    <h2>Plan Breakdown &mdash; All 5 Segments</h2>
+    <div class="tbl-wrap"><table>@@PLAN_CROSS_HTML@@</table></div>
+  </div>
+</div>
+
+<!-- TAB 3: RETENTION & RENEWALS -->
+<div class="tabpanel" id="tab-ret">
+  <div class="section">
+    <h2>Retention &amp; Conversion Metrics</h2>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Click [+] on any row to expand per-segment breakdown.</p>
+    <div class="tbl-wrap"><table>
+      <tr><th>Metric</th><th>Yesterday</th><th>MTD</th><th>Prev Month</th><th>Same Period</th><th>YTD</th><th>Lifetime</th></tr>
+      @@RET_CONV_HTML@@
+    </table></div>
+  </div>
+  <div class="section">
+    <h2>MoM Retention Variance</h2>
+    <div class="tbl-wrap"><table>
+      <tr><th>Metric</th><th>MTD</th><th>vs Prev Month Full</th><th>vs Same Days Last Mo.</th></tr>
+      @@MOM_RET_HTML@@
+    </table></div>
+  </div>
+  <div class="section">
+    <h2>Metric Validation Reference &mdash; MTD (@@MTD_START@@)</h2>
+    <div class="tbl-wrap"><table>
+      <tr><th>Segment</th><th>Churn Events</th><th>Paid Active at Start</th><th>Churn Rate</th><th>Renewals MTD</th><th>Trials Ended</th><th>Converted</th><th>Trial Conv%</th></tr>
+      @@METRIC_VAL_HTML@@
+    </table></div>
+  </div>
+
+  <h2>Churn Detail</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+    <div class="kpi-card clickable red" onclick="toggleDrill('drill-churn-paid')" style="flex:1;min-width:200px">
+      <div class="lbl">Paid Churned MTD</div>
+      <div class="val" id="card-churn-paid">&#8230;</div>
+      <div class="sub" style="color:var(--purple)">&#9660; view list</div>
+    </div>
+    <div class="kpi-card clickable amber" onclick="toggleDrill('drill-churn-trial')" style="flex:1;min-width:200px">
+      <div class="lbl">Trial Churned MTD</div>
+      <div class="val" id="card-churn-trial">&#8230;</div>
+      <div class="sub" style="color:var(--purple)">&#9660; view list</div>
+    </div>
+  </div>
+  <div class="drill" id="drill-churn-paid">
+    <h4>Paid Churned MTD <span class="badge" id="cnt-churn-paid"></span></h4>
+    <button class="btn btn-csv" onclick="downloadCSV('churned_mtd')">&#8595; CSV</button>
+    <input class="srch" placeholder="Filter..." oninput="filterDrill(this,'tbl-churn-paid')">
+    <div class="drill-tbl"><table id="tbl-churn-paid"></table></div>
+  </div>
+  <div class="drill" id="drill-churn-trial">
+    <h4>Trial Churned MTD <span class="badge" id="cnt-churn-trial"></span></h4>
+    <button class="btn btn-csv" onclick="downloadCSV('churned_trial')">&#8595; CSV</button>
+    <input class="srch" placeholder="Filter..." oninput="filterDrill(this,'tbl-churn-trial')">
+    <div class="drill-tbl"><table id="tbl-churn-trial"></table></div>
+  </div>
+</div>
+
+<!-- TAB 4: RAW DATA -->
+<div class="tabpanel" id="tab-raw">
+  <h2>Raw Data</h2>
+  <p style="color:var(--muted);font-size:13px;margin-bottom:16px">
+    Full transaction-level dataset (PII columns excluded from download).
+    Row count: <strong id="raw-count">&#8230;</strong>
+  </p>
+  <button class="btn btn-dl" onclick="downloadRawCSV()">&#8595; Download Raw Data CSV</button>
+  <p style="font-size:12px;color:var(--muted);margin-top:10px">
+    Excluded from download: full_name, email_id, contact_number, stripe_cus_id,
+    stripe_pmt_id, gateway_refund_ref_id.
+  </p>
+</div>
+
+<footer>CEO Subscription Dashboard &nbsp;&middot;&nbsp; @@GENERATED_ON@@ &nbsp;&middot;&nbsp; @@TZ@@</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+var DATA = @@DATA_BLOB@@;
+var KPI  = DATA.kpi  || {};
+var DD   = DATA.drilldown || {};
+
+function showTab(id) {
+  document.querySelectorAll('.tabpanel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tabbtn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('tab-'+id).classList.add('active');
+  var map = {exec:0, plans:1, ret:2, raw:3};
+  var btns = document.querySelectorAll('.tabbtn');
+  if (btns[map[id]]) btns[map[id]].classList.add('active');
+}
+
+function fmt(v) {
+  if (v===null||v===undefined) return '—';
+  if (typeof v==='number') return v.toLocaleString('en-US');
+  return String(v);
+}
+function fmtPct(v) { return (v===null||v===undefined)?'—':(v*100).toFixed(2)+'%'; }
+function fmtMoney(v) {
+  if (v===null||v===undefined) return '—';
+  return '$'+Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtChg(curr, prev) {
+  if (!curr||!prev||prev===0) return '';
+  var d=curr-prev, p=d/prev*100;
+  var s=d>=0?'&#9650;':'&#9660;', cls=d>=0?'up':'dn';
+  return '<span class="'+cls+'">'+s+' '+Math.abs(p).toFixed(1)+'%</span> vs prev same';
+}
+function makeCard(label,val,chg,sub,color) {
+  color=color||'';
+  return '<div class="kpi-card '+color+'">'
+    +'<div class="lbl">'+label+'</div><div class="val">'+val+'</div>'
+    +(chg?'<div class="chg">'+chg+'</div>':'')
+    +(sub?'<div class="sub">'+sub+'</div>':'')+'</div>';
+}
+
+var sc=KPI.subscription_counts||{}, st=KPI.subscription_types||{};
+var act=KPI.active||{}, rev=KPI.revenue||{};
+var pc=KPI.paid_churn||{}, tc=KPI.trial_conversion||{}, tp=KPI.trial_pipeline||{};
+
+var r1=document.getElementById('kpi-row1');
+if(r1) r1.innerHTML=
+  makeCard('Unique Users',fmt(sc.unique_users&&sc.unique_users.mtd),fmtChg(sc.unique_users&&sc.unique_users.mtd,sc.unique_users&&sc.unique_users.prev_same),'Yesterday: '+fmt(sc.unique_users&&sc.unique_users.yesterday)+' &nbsp;&#183;&nbsp; Lifetime: '+fmt(sc.unique_users&&sc.unique_users.lifetime))
+ +makeCard('Unique Subscriptions',fmt(sc.unique_subs&&sc.unique_subs.mtd),fmtChg(sc.unique_subs&&sc.unique_subs.mtd,sc.unique_subs&&sc.unique_subs.prev_same),'Yesterday: '+fmt(sc.unique_subs&&sc.unique_subs.yesterday)+' &nbsp;&#183;&nbsp; Lifetime: '+fmt(sc.unique_subs&&sc.unique_subs.lifetime),'teal')
+ +makeCard('Total Transactions',fmt(sc.total_transactions&&sc.total_transactions.mtd),fmtChg(sc.total_transactions&&sc.total_transactions.mtd,sc.total_transactions&&sc.total_transactions.prev_same),'Yesterday: '+fmt(sc.total_transactions&&sc.total_transactions.yesterday),'amber')
+ +makeCard('Active Subscribers',fmt(act.active_now),'','At month start: '+fmt(act.active_at_month_start),'navy');
+
+var r2=document.getElementById('kpi-row2');
+if(r2) r2.innerHTML=
+  makeCard('New Subscriptions',fmt(st.new_subs&&st.new_subs.mtd),fmtChg(st.new_subs&&st.new_subs.mtd,st.new_subs&&st.new_subs.prev_same),'Yesterday: '+fmt(st.new_subs&&st.new_subs.yesterday)+' &nbsp;&#183;&nbsp; Lifetime: '+fmt(st.new_subs&&st.new_subs.lifetime))
+ +makeCard('Trials Started',fmt(st.trials&&st.trials.mtd),fmtChg(st.trials&&st.trials.mtd,st.trials&&st.trials.prev_same),'Yesterday: '+fmt(st.trials&&st.trials.yesterday)+' &nbsp;&#183;&nbsp; Lifetime: '+fmt(st.trials&&st.trials.lifetime),'teal')
+ +makeCard('Renewals',fmt(st.renewals&&st.renewals.mtd),fmtChg(st.renewals&&st.renewals.mtd,st.renewals&&st.renewals.prev_same),'Yesterday: '+fmt(st.renewals&&st.renewals.yesterday)+' &nbsp;&#183;&nbsp; Prev Month: '+fmt(st.renewals&&st.renewals.prev_full),'amber')
+ +makeCard('Trial Pipeline',fmt(tp.count),'','Unconverted trials still within trial period','navy');
+
+var r3=document.getElementById('kpi-row3');
+if(r3) r3.innerHTML=
+  makeCard('Net Cash Revenue',fmtMoney((rev.mtd||{}).net_cash),fmtChg((rev.mtd||{}).net_cash,(rev.prev_same||{}).net_cash),'Gross: '+fmtMoney((rev.mtd||{}).cash)+' &nbsp;&#183;&nbsp; Refunds: '+fmtMoney((rev.mtd||{}).refunds))
+ +makeCard('MRR',fmtMoney((rev.mtd||{}).mrr),fmtChg((rev.mtd||{}).mrr,(rev.prev_same||{}).mrr),'Yesterday: '+fmtMoney((rev.yesterday||{}).mrr)+' &nbsp;&#183;&nbsp; YTD: '+fmtMoney((rev.ytd||{}).mrr),'teal')
+ +makeCard('Paid Churn Rate',fmtPct((pc.mtd||{}).rate),fmtChg((pc.mtd||{}).rate,(pc.prev_full||{}).rate),'Events: '+fmt((pc.mtd||{}).events)+' &nbsp;&#183;&nbsp; Denom: '+fmt((pc.mtd||{}).denominator),'red')
+ +makeCard('Trial&#8594;Paid',fmtPct((tc.mtd||{}).rate),fmtChg((tc.mtd||{}).rate,(tc.prev_full||{}).rate),'Ended: '+fmt((tc.mtd||{}).total)+' &nbsp;&#183;&nbsp; Converted: '+fmt((tc.mtd||{}).converted),'green');
+
+var el;
+el=document.getElementById('card-active-now'); if(el) el.textContent=fmt(act.active_now);
+el=document.getElementById('card-active-start'); if(el) el.textContent=fmt(act.active_at_month_start);
+el=document.getElementById('card-start-sub'); if(el) el.innerHTML='Paid: '+fmt((pc.mtd||{}).denominator)+' &nbsp;&#183;&nbsp; Free: '+fmt((act.active_at_month_start||0)-((pc.mtd||{}).denominator||0));
+el=document.getElementById('card-trials'); if(el) el.textContent=fmt(tp.count);
+el=document.getElementById('card-churn-paid'); if(el) el.textContent=fmt((pc.mtd||{}).events);
+el=document.getElementById('card-churn-trial'); if(el) el.textContent=fmt(DD.churned_trial?DD.churned_trial.length:null);
+el=document.getElementById('raw-count'); if(el) el.textContent=fmt(DD.raw_data_row_count);
+
+function buildTable(tid, rows) {
+  var t=document.getElementById(tid); if(!t) return;
+  if(!rows||!rows.length){t.innerHTML='<tr><td style="color:#999;padding:10px">No rows.</td></tr>';return;}
+  var cols=Object.keys(rows[0]);
+  var h='<thead><tr>'+cols.map(function(c){return '<th>'+c+'</th>';}).join('')+'</tr></thead><tbody>';
+  rows.forEach(function(r){h+='<tr>'+cols.map(function(c){return '<td>'+(r[c]||'')+'</td>';}).join('')+'</tr>';});
+  t.innerHTML=h+'</tbody>';
+}
+function updateCount(bid, rows){ var b=document.getElementById(bid); if(b) b.textContent=((rows||[]).length).toLocaleString()+' rows'; }
+function toggleDrill(id){ var p=document.getElementById(id); if(p) p.classList.toggle('open'); }
+function filterDrill(inp, tid){ var q=inp.value.toLowerCase(); document.querySelectorAll('#'+tid+' tbody tr').forEach(function(r){r.style.display=r.textContent.toLowerCase().indexOf(q)>=0?'':'none';}); }
+function downloadCSV(key){
+  var rows=DD[key]; if(!rows||!rows.length){alert('No data.');return;}
+  var cols=Object.keys(rows[0]);
+  var csv=[cols.join(',')].concat(rows.map(function(r){return cols.map(function(c){return JSON.stringify(r[c]||'');}).join(',');})).join('\n');
+  var a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download=key+'.csv'; a.click();
+}
+
+buildTable('tbl-now',DD.active_now); updateCount('cnt-now',DD.active_now);
+buildTable('tbl-start',DD.active_at_month_start); updateCount('cnt-start',DD.active_at_month_start);
+buildTable('tbl-trials',DD.trial_pipeline); updateCount('cnt-trials',DD.trial_pipeline);
+buildTable('tbl-churn-paid',DD.churned_mtd); updateCount('cnt-churn-paid',DD.churned_mtd);
+buildTable('tbl-churn-trial',DD.churned_trial); updateCount('cnt-churn-trial',DD.churned_trial);
+
+(function(){
+  var bd=DD.active_by_plan_breakdown||{}, dt=DD.active_by_plan_date||'';
+  var cc=document.getElementById('plan-cards'), pc=document.getElementById('plan-panels');
+  if(!cc) return;
+  Object.keys(bd).forEach(function(seg){
+    var rows=bd[seg]||[], key='plan-'+seg.replace(/\s+/g,'_');
+    var card=document.createElement('div');
+    card.className='kpi-card teal clickable'; card.style.cssText='flex:1;min-width:150px;max-width:220px';
+    card.innerHTML='<div class="lbl">'+seg+'</div><div class="val">'+rows.length.toLocaleString()+'</div><div class="sub" style="color:var(--purple)">&#9660; view list</div>';
+    card.onclick=function(){toggleDrill('drill-'+key);};
+    cc.appendChild(card);
+    var panel=document.createElement('div');
+    panel.className='drill'; panel.id='drill-'+key;
+    panel.innerHTML='<h4>'+seg+' &mdash; active on '+dt+' <span class="badge">'+rows.length.toLocaleString()+' rows</span></h4>'
+      +'<button class="btn btn-csv" onclick="dlPlan(\''+seg+'\')">&#8595; CSV</button>'
+      +'<input class="srch" placeholder="Filter..." oninput="filterDrill(this,\'tbl-'+key+'\')">'
+      +'<div class="drill-tbl"><table id="tbl-'+key+'"></table></div>';
+    pc.appendChild(panel);
+    buildTable('tbl-'+key, rows);
+  });
+})();
+function dlPlan(seg){
+  var rows=(DD.active_by_plan_breakdown||{})[seg]||[]; if(!rows.length){alert('No data');return;}
+  var cols=Object.keys(rows[0]);
+  var csv=[cols.join(',')].concat(rows.map(function(r){return cols.map(function(c){return JSON.stringify(r[c]||'');}).join(',');})).join('\n');
+  var a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download='active_'+seg.replace(/\s+/g,'_')+'.csv'; a.click();
+}
+
+function toggleSeg(id){
+  var rows=document.querySelectorAll('.seg-'+id), hidden=rows.length&&rows[0].style.display==='none';
+  rows.forEach(function(r){r.style.display=hidden?'':'none';});
+}
+
+(function(){
+  var ctx=document.getElementById('trendChart');
+  if(!ctx||typeof Chart==='undefined') return;
+  var trend=KPI.monthly_trend||[];
+  new Chart(ctx,{type:'bar',data:{
+    labels:trend.map(function(t){return t.month_label||'';}),
+    datasets:[
+      {label:'New Subs',data:trend.map(function(t){return t.new_subs||0;}),backgroundColor:'rgba(108,52,131,.75)'},
+      {label:'Renewals',data:trend.map(function(t){return t.renewals||0;}),backgroundColor:'rgba(17,122,101,.75)'},
+      {label:'Trials',data:trend.map(function(t){return t.trials||0;}),backgroundColor:'rgba(183,119,13,.55)'}
+    ]
+  },options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{position:'top'}},scales:{x:{stacked:false},y:{beginAtZero:true}}}});
+})();
+
+function downloadRawCSV(){
+  var rows=DD.raw_data_records;
+  if(!rows||!rows.length){alert('Raw data not available in this file.');return;}
+  var cols=DD.raw_data_cols||Object.keys(rows[0]);
+  var lines=[cols.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(',')];
+  rows.forEach(function(r){
+    lines.push(cols.map(function(c){
+      var v=r[c]===undefined?'':String(r[c]);
+      return '"'+v.replace(/"/g,'""')+'"';
+    }).join(','));
+  });
+  var csv=lines.join('\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download='CEO_Subscription_Raw_Data.csv';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
